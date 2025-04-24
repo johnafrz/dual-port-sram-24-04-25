@@ -1,0 +1,70 @@
+module dual_port_sram_(
+    input wire clk,
+    input wire rst,                // btnC
+    input wire [8:0] sw,           // sw[3:0]=data, sw[5:4]=shared_addr, sw[6]=write_sel, sw[7]=write_en, sw[8]=read_en
+    output reg [3:0] led           // LED
+);
+
+    // Slow Clock (~1 Hz)
+    reg [25:0] clk_div;
+    reg slow_clk;
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            clk_div <= 0;
+            slow_clk <= 0;
+        end else begin
+            if (clk_div == 26'd49_999_999) begin
+                clk_div <= 0;
+                slow_clk <= ~slow_clk;
+            end else begin
+                clk_div <= clk_div + 1;
+            end
+        end
+    end
+
+    // Shared SRAM: 4 x 4-bit memory
+    reg [3:0] mem [0:3];
+
+    wire [3:0] data_in = sw[3:0];  // Data input
+    wire [1:0] addr    = sw[5:4];  // Shared address
+    wire write_sel     = sw[6];    // Write select (0=Port A, 1=Port B)
+    wire write_en      = sw[7];    // Write enable
+    wire read_en       = sw[8];    // Read enable (NEW!)
+
+    reg [3:0] dout_a, dout_b;
+
+    integer i;
+    always @(posedge slow_clk or posedge rst) begin
+        if (rst) begin
+            dout_a <= 0;
+            dout_b <= 0;
+            for (i = 0; i < 4; i = i + 1)
+                mem[i] <= 0;
+        end else begin
+            // Write operation (one port at a time)
+            if (write_en) begin
+                mem[addr] <= data_in;  // Write to shared memory at addr
+            end
+
+            // Read for both ports (always read same address)
+            dout_a <= mem[addr];  // Read for Port A
+            dout_b <= mem[addr];  // Read for Port B
+        end
+    end
+
+    // Output to LEDs (show data only when read_en is ON)
+    always @(posedge slow_clk or posedge rst) begin
+        if (rst)
+            led <= 0;
+        else begin
+            if (read_en) begin  // Only show data when read_en is active
+                if (!write_sel)
+                    led <= dout_a;   // Show data from Port A
+                else
+                    led <= dout_b;   // Show data from Port B
+            end else
+                led <= 4'b0000;      // Blank LEDs when read_en is off
+        end
+    end
+
+endmodule
