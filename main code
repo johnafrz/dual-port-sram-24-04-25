@@ -1,7 +1,7 @@
 module dual_port_sram_(
     input wire clk,
     input wire rst,                // btnC
-    input wire [8:0] sw,           // sw[3:0]=data, sw[5:4]=shared_addr, sw[6]=write_sel, sw[7]=write_en, sw[8]=read_en
+    input wire [8:0] sw,           // sw[3:0]=data, sw[5:4]=addr, sw[6]=write_selction, sw[7]=write_enable, sw[8]=read_enable
     output reg [3:0] led           // LED
 );
 
@@ -22,14 +22,14 @@ module dual_port_sram_(
         end
     end
 
-    // Shared SRAM: 4 x 4-bit memory
+    // SRAM: 4 x 4-bit memory
     reg [3:0] mem [0:3];
 
     wire [3:0] data_in = sw[3:0];  // Data input
-    wire [1:0] addr    = sw[5:4];  // Shared address
+    wire [1:0] addr    = sw[5:4];  //  address
     wire write_sel     = sw[6];    // Write select (0=Port A, 1=Port B)
     wire write_en      = sw[7];    // Write enable
-    wire read_en       = sw[8];    // Read enable (NEW!)
+    wire read_en       = sw[8];    // Read enable 
 
     reg [3:0] dout_a, dout_b;
 
@@ -41,9 +41,9 @@ module dual_port_sram_(
             for (i = 0; i < 4; i = i + 1)
                 mem[i] <= 0;
         end else begin
-            // Write operation (one port at a time)
+            // Write operation 
             if (write_en) begin
-                mem[addr] <= data_in;  // Write to shared memory at addr
+                mem[addr] <= data_in;  // Write to memory at addr
             end
 
             // Read for both ports (always read same address)
@@ -52,12 +52,12 @@ module dual_port_sram_(
         end
     end
 
-    // Output to LEDs (show data only when read_en is ON)
+    // Output to LEDs 
     always @(posedge slow_clk or posedge rst) begin
         if (rst)
             led <= 0;
         else begin
-            if (read_en) begin  // Only show data when read_en is active
+            if (read_en) begin  //  show data when read_en is on
                 if (!write_sel)
                     led <= dout_a;   // Show data from Port A
                 else
